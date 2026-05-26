@@ -1,0 +1,12 @@
+services:
+  db:
+    image: mariadb:latest
+    container_name: pase_de_lista_db
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE: pase_de_lista
+      MARIADB_USER: app
+      MARIADB_PASSWORD: apppassword

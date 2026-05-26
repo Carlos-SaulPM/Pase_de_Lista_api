@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum EstadoAsistencia {
+  PRESENTE
+  FALTA
+  RETARDO
+  JUSTIFICADO
+
+  @@map("estado_PRESENTE_FALTA_RETARDO_JUSTIFICADO_t")
+}
+
+enum MetodoAsistencia {
+  MANUAL
+  BLE
+  QR
+
+  @@map("metodo_MANUAL_BLE_QR_t")
+}
+
+enum Rol {
+  ALUMNO
+  PROFESOR
+  ADMINISTRADOR
+
+  @@map("rol_ALUMNO_PROFESOR_ADMINISTRADOR_t")
+}
+
+enum DiaDeLaSemana {
+  LUNES
+  MARTES
+  MIERCOLES
+  JUEVES
+  VIERNES
+  SABADO
+
+  @@map("dia_de_la_semana_LUNES_MARTES_MIERCOLES_JUEVES_VIERNES_SABADO_t")
+}
+
+model Usuario {
+  id              Int      @id @default(autoincrement())
+  nombre          String   @db.VarChar(80)
+  apellidoPaterno String   @map("apellido_paterno") @db.VarChar(80)
+  apellidoMaterno String   @map("apellido_materno") @db.VarChar(80)
+  fechaDeCreacion DateTime @map("fecha_de_creacion")
+  correo          String?  @db.VarChar(100)
+  rol             Rol
+
+  credencial    Credencial?
+  dispositivos  Dispositivos[]
+  clases        Clase[]       @relation("ProfesorClases")
+  inscripciones Inscripcion[]
+  asistencias   Asistencia[]
+
+  @@map("usuario")
+}
+
+model Credencial {
+  id         Int     @id @default(autoincrement())
+  usuarioId  Int     @unique @map("usuario_id")
+  matricula  String  @unique @db.VarChar(70)
+  contrasena String  @db.VarChar(100)
+  estaActivo Boolean @default(false) @map("esta_activo")
+
+  // Relación
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+
+  @@map("credencial")
+}
+
+model Asistencia {
+  id               Int              @id @default(autoincrement())
+  claseId          Int              @map("clase_id")
+  alumnoId         Int              @map("alumno_id")
+  estado           EstadoAsistencia
+  metodo           MetodoAsistencia
+  fechaDispositivo DateTime         @map("fecha_dispositivo")
+  fechaRegistro    DateTime         @map("fecha_registro")
+
+  // Relaciones
+  clase  Clase   @relation(fields: [claseId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  alumno Usuario @relation(fields: [alumnoId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+
+  @@map("asistencia")
+}
+
+model Materia {
+  id     Int    @id @default(autoincrement())
+  clave  String @unique @db.VarChar(20)
+  nombre String @db.VarChar(100)
+
+  // Relaciones
+  clases Clase[]
+
+  @@map("materia")
+}
+
+model Inscripcion {
+  id              Int       @id @default(autoincrement())
+  claseId         Int       @map("clase_id")
+  alumnoId        Int       @map("alumno_id")
+  fechaDeCreacion DateTime  @map("fecha_de_creacion")
+  fechaDeBaja     DateTime? @map("fecha_de_baja")
+  estaActivo      Boolean   @map("esta_activo")
+
+  // Relaciones
+  clase  Clase   @relation(fields: [claseId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  alumno Usuario @relation(fields: [alumnoId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+
+  @@map("inscripcion")
+}
+
+model Clase {
+  id              Int       @id @default(autoincrement())
+  materiaId       Int       @map("materia_id")
+  profesorId      Int       @map("profesor_id")
+  grupo           String    @unique @db.VarChar(10)
+  periodo         String?   @db.VarChar(30)
+  aula            String?   @db.VarChar(50)
+  fechaDeCreacion DateTime  @map("fecha_de_creacion")
+  fechaDeBaja     DateTime? @map("fecha_de_baja")
+  estaActivo      Boolean   @map("esta_activo")
+
+  // Relaciones
+  materia       Materia               @relation(fields: [materiaId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  profesor      Usuario               @relation("ProfesorClases", fields: [profesorId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  inscripciones Inscripcion[]
+  asistencias   Asistencia[]
+  configuracion ConfiguracionDeClase?
+  horarios      HorarioClase[] // Ver nota abajo sobre HorarioClase
+
+  @@map("clase")
+}
+
+model Dispositivos {
+  id        Int    @id @default(autoincrement())
+  usuarioId Int    @map("usuario_id")
+  androidId String @unique @map("android_id") @db.VarChar(255)
+  fcmToken  String @unique @map("fcm_token") @db.VarChar(255)
+
+  // Relación
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+
+  @@map("dispositivos")
+}
+
+model HorarioClase {
+  id            Int           @id @default(autoincrement())
+  claseId       Int           @map("clase_id")
+  dia           Int           @db.TinyInt
+  diaDeLaSemana DiaDeLaSemana @map("dia_de_la_semana")
+  horaDeInicio  DateTime      @map("hora_de_inicio") @db.Time
+  horaDeFin     DateTime      @map("hora_de_fin") @db.Time
+
+  // Relación
+  clase Clase @relation(fields: [claseId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+
+  @@map("horario_clase")
+}
+
+// model Justificante {
+//   id Int @id @default(autoincrement())
+
+//   @@map("justificante")
+// }
+
+model ConfiguracionDeClase {
+  claseId                      Int     @id @map("clase_id")
+  llaveSecreta                 String? @map("llave_secreta") @db.VarChar(120)
+  minutosDeTolerancia          Int?    @map("minutos_de_tolerancia") @db.SmallInt
+  segundosDeExpiracionDelToken Int?    @map("segundos_de_expiracion_del_token") @db.SmallInt
+  distanciaRssi                Int?    @map("distancia_rssi") @db.TinyInt
+
+  // Relación
+  clase Clase @relation(fields: [claseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("configuracion_de_clase")
+}
