@@ -4,7 +4,10 @@ import {
   eliminarHorario,
 } from "#/services/HorarioService.js";
 import { actualizarHorarioSchema } from "#/schemas/HorarioSchemas.js";
-import { authMiddleware } from "#/middleware/auth.js";
+import { authMiddleware, requireRol, AutenticatedRequest } from "#/middleware/auth.js";
+import { obtenerClasePorId } from "#/services/ClaseService.js";
+import { diasDeLaSemana } from "#/util/diasDeLaSemana";
+import { DiaDeLaSemana } from "@prisma/client";
 
 /**
  * @openapi
@@ -72,8 +75,19 @@ import { authMiddleware } from "#/middleware/auth.js";
  */
 export const PUT = [
   authMiddleware,
-  async (req: Request, res: Response) => {
+  requireRol("PROFESOR", "ADMINISTRADOR"),
+  async (req: AutenticatedRequest, res: Response) => {
+    const claseId = Number(req.params.claseId);
     const id = Number(req.params.id);
+
+    if (req.user.rol === "PROFESOR") {
+      const clase = await obtenerClasePorId(claseId);
+      if (clase.profesorId !== req.user.usuarioId) {
+        res.status(403).json({ error: "No eres el profesor de esta clase" });
+        return;
+      }
+    }
+
     const validacion = actualizarHorarioSchema.safeParse(req.body);
 
     if (!validacion.success) {
@@ -86,6 +100,11 @@ export const PUT = [
     const datos: Record<string, Date | string | number> = {
       ...validacion.data,
     };
+
+    if (validacion.data.dia !== undefined) {
+      datos.diaDeLaSemana = diasDeLaSemana[Number(validacion.data.dia) - 1] as DiaDeLaSemana;
+    }
+
     if (validacion.data.horaDeInicio) {
       datos.horaDeInicio = new Date(
         `1970-01-01T${validacion.data.horaDeInicio}:00Z`,
@@ -102,8 +121,19 @@ export const PUT = [
 
 export const DELETE = [
   authMiddleware,
-  async (req: Request, res: Response) => {
+  requireRol("PROFESOR", "ADMINISTRADOR"),
+  async (req: AutenticatedRequest, res: Response) => {
+    const claseId = Number(req.params.claseId);
     const id = Number(req.params.id);
+
+    if (req.user.rol === "PROFESOR") {
+      const clase = await obtenerClasePorId(claseId);
+      if (clase.profesorId !== req.user.usuarioId) {
+        res.status(403).json({ error: "No eres el profesor de esta clase" });
+        return;
+      }
+    }
+
     await eliminarHorario(id);
     res.json({ mensaje: "Horario eliminado exitosamente" });
   },

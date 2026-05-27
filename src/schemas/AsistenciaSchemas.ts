@@ -7,15 +7,16 @@ export const registrarAsistenciaSchema = z.object({
   qrToken: z.string().optional(),
 });
 
+const registroAsistenciaSchema = z.object({
+  alumnoId: z.number().int().positive(),
+  estado: z.enum(["PRESENTE", "FALTA", "RETARDO", "JUSTIFICADO"]),
+  totp: z.string().optional(),
+  metodo: z.enum(["MANUAL", "BLE", "QR"]).optional(),
+});
+
 export const registrarAsistenciaLoteSchema = z.object({
   claseId: z.number().int().positive("El ID de la clase debe ser positivo"),
-  registros: z.array(
-    z.object({
-      alumnoId: z.number().int().positive(),
-      estado: z.enum(["PRESENTE", "FALTA", "RETARDO", "JUSTIFICADO"]),
-      totp: z.string().optional(),
-    }),
-  ),
+  registros: z.array(registroAsistenciaSchema),
 });
 
 export const actualizarAsistenciaSchema = z.object({

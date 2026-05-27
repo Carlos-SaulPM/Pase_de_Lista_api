@@ -57,7 +57,7 @@ import { authMiddleware, requireRol, AutenticatedRequest } from "#/middleware/au
  *       400:
  *         description: Datos inválidos
  */
-export const GET = [authMiddleware, requireRol("ADMINISTRADOR"), async (_req: AutenticatedRequest, res: Response) => {
+export const GET = [authMiddleware, requireRol("PROFESOR", "ADMINISTRADOR"), async (_req: AutenticatedRequest, res: Response) => {
   const materias = await listarMaterias();
   res.json(materias);
 }];

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { listarAsistencias, listarAlumnosConAsistencia, registrarAsistenciaQR } from "#/services/AsistenciaService.js";
 import { registrarAsistenciaSchema } from "#/schemas/AsistenciaSchemas.js";
-import { authMiddleware, AutenticatedRequest } from "#/middleware/auth.js";
+import { authMiddleware, requireRol, AutenticatedRequest } from "#/middleware/auth.js";
 import { ErrorValidacion } from "#/errors/ErrorValidacion.js";
 
 /**
@@ -109,6 +109,7 @@ export const POST = [authMiddleware, async (req: AutenticatedRequest, res: Respo
       res.status(400).json({ error: e.message });
       return;
     }
-    res.status(404).json({ error: (e as Error).message });
+    console.error("Error al registrar asistencia QR:", e);
+    res.status(500).json({ error: "Error interno al registrar asistencia" });
   }
 }];

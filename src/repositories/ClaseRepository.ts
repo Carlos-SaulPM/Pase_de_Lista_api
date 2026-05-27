@@ -24,6 +24,7 @@ export const crearClase = async (datos: {
   profesorId: number;
   grupo: string;
   periodo?: string;
+  aula?: string;
 }) => {
   const llaveSecreta = generarLlaveSecreta();
 
@@ -32,7 +33,8 @@ export const crearClase = async (datos: {
       materiaId: datos.materiaId,
       profesorId: datos.profesorId,
       grupo: datos.grupo,
-      periodo: datos.periodo,
+      periodo: datos.periodo ?? null,
+      aula: datos.aula ?? null,
       fechaDeCreacion: new Date(),
       estaActivo: true,
       configuracion: {
@@ -55,6 +57,7 @@ export const actualizarClase = async (
     profesorId: number;
     grupo: string;
     periodo?: string;
+    aula?: string;
     estaActivo: boolean;
   }>,
 ) => {

@@ -166,5 +166,5 @@ export const setupSwagger = (app: Application) => {
     }),
   );
   app.get("/api-docs/swagger.json", (_req, res) => res.json(specs));
-  console.log("📚 Swagger: http://localhost:3000/api-docs");
+  console.log("📚 Swagger: http://localhost:3001/api-docs");
 };

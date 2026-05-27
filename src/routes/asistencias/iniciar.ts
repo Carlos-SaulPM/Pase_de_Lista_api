@@ -1,6 +1,6 @@
 import { Response } from "express";
 import { z } from "zod";
-import { authMiddleware, AutenticatedRequest } from "#/middleware/auth.js";
+import { authMiddleware, requireRol, AutenticatedRequest } from "#/middleware/auth.js";
 import { iniciarSesion } from "#/services/AsistenciaService.js";
 import { ErrorValidacion } from "#/errors/ErrorValidacion.js";
 
@@ -40,7 +40,7 @@ const iniciarSesionSchema = z.object({
  *       403:
  *         description: No eres el profesor de esta clase
  */
-export const POST = [authMiddleware, async (req: AutenticatedRequest, res: Response) => {
+export const POST = [authMiddleware, requireRol("PROFESOR"), async (req: AutenticatedRequest, res: Response) => {
   const validacion = iniciarSesionSchema.safeParse(req.body);
 
   if (!validacion.success) {
@@ -58,6 +58,7 @@ export const POST = [authMiddleware, async (req: AutenticatedRequest, res: Respo
       res.status(403).json({ error: e.message });
       return;
     }
-    res.status(404).json({ error: (e as Error).message });
+    console.error("Error al iniciar sesion de asistencia:", e);
+    res.status(500).json({ error: "Error interno al iniciar sesion" });
   }
 }];

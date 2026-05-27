@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { eliminarInscripcion } from "#/services/InscripcionService.js";
-import { authMiddleware } from "#/middleware/auth.js";
+import { authMiddleware, requireRol } from "#/middleware/auth.js";
 
 /**
  * @openapi
@@ -29,7 +29,7 @@ import { authMiddleware } from "#/middleware/auth.js";
  *       404:
  *         description: Inscripción no encontrada
  */
-export const DELETE = [authMiddleware, async (req: Request, res: Response) => {
+export const DELETE = [authMiddleware, requireRol("PROFESOR", "ADMINISTRADOR"), async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   await eliminarInscripcion(id);
   res.json({ mensaje: "Inscripción dada de baja exitosamente" });

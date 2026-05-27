@@ -42,6 +42,8 @@ export const obtenerPerfil = async (payload: TokenPayload) => {
   return {
     id: credencial.usuario.id,
     nombre: credencial.usuario.nombre,
+    apellidoPaterno: credencial.usuario.apellidoPaterno,
+    apellidoMaterno: credencial.usuario.apellidoMaterno,
     correo: credencial.usuario.correo,
     rol: credencial.usuario.rol,
     matricula: credencial.matricula,

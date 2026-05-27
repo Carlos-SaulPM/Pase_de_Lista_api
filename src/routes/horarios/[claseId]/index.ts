@@ -1,13 +1,18 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import {
   listarHorariosPorClase,
   crearNuevoHorario,
 } from "#/services/HorarioService.js";
 import { crearHorarioSchema } from "#/schemas/HorarioSchemas.js";
-import { authMiddleware, requireRol } from "#/middleware/auth.js";
+import { authMiddleware, requireRol, AutenticatedRequest } from "#/middleware/auth.js";
+import { obtenerClasePorId } from "#/services/ClaseService.js";
 import { diasDeLaSemana } from "#/util/diasDeLaSemana";
 import { DiaDeLaSemana } from "@prisma/client";
 import { ErrorConflicto } from "#/errors/ErrorConflicto.js";
+
+function fmt(t: Date): string {
+  return `${String(t.getUTCHours()).padStart(2, "0")}:${String(t.getUTCMinutes()).padStart(2, "0")}`;
+}
 
 /**
  * @openapi
@@ -92,19 +97,44 @@ import { ErrorConflicto } from "#/errors/ErrorConflicto.js";
  */
 export const GET = [
   authMiddleware,
-  requireRol("ADMINISTRADOR"),
-  async (req: Request, res: Response) => {
+  requireRol("PROFESOR", "ADMINISTRADOR"),
+  async (req: AutenticatedRequest, res: Response) => {
     const claseId = Number(req.params.claseId);
-    const horarios = await listarHorariosPorClase(claseId);
+
+    if (req.user.rol === "PROFESOR") {
+      const clase = await obtenerClasePorId(claseId);
+      if (clase.profesorId !== req.user.usuarioId) {
+        res.status(403).json({ error: "No eres el profesor de esta clase" });
+        return;
+      }
+    }
+
+    const horarios = (await listarHorariosPorClase(claseId)).map((h) => ({
+      id: h.id,
+      claseId: h.claseId,
+      dia: h.dia,
+      diaDeLaSemana: h.diaDeLaSemana,
+      horaDeInicio: fmt(h.horaDeInicio),
+      horaDeFin: fmt(h.horaDeFin),
+    }));
     res.json(horarios);
   },
 ];
 
 export const POST = [
   authMiddleware,
-  requireRol("ADMINISTRADOR"),
-  async (req: Request, res: Response) => {
+  requireRol("PROFESOR", "ADMINISTRADOR"),
+  async (req: AutenticatedRequest, res: Response) => {
     const claseId = Number(req.params.claseId);
+
+    if (req.user.rol === "PROFESOR") {
+      const clase = await obtenerClasePorId(claseId);
+      if (clase.profesorId !== req.user.usuarioId) {
+        res.status(403).json({ error: "No eres el profesor de esta clase" });
+        return;
+      }
+    }
+
     const validacion = crearHorarioSchema.safeParse(req.body);
 
     if (!validacion.success) {

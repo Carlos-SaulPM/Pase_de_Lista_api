@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { authMiddleware, AutenticatedRequest } from "#/middleware/auth.js";
+import { authMiddleware, requireRol, AutenticatedRequest } from "#/middleware/auth.js";
 import { obtenerMisClases } from "#/services/InscripcionService.js";
 
 /**
@@ -17,6 +17,7 @@ import { obtenerMisClases } from "#/services/InscripcionService.js";
  */
 export const GET = [
   authMiddleware,
+  requireRol("ALUMNO"),
   async (req: AutenticatedRequest, res: Response) => {
     const inscripciones = await obtenerMisClases(req.user.usuarioId);
     res.json(inscripciones);

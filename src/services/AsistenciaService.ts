@@ -15,7 +15,7 @@ import {
 import { ErrorRecursoNoEncontrado } from "#/errors/ErrorRecursoNoEncontrado.js";
 import { ErrorValidacion } from "#/errors/ErrorValidacion.js";
 import { validarQrToken, generarQrToken, calcularVentana } from "#/util/qrToken.js";
-import { calcularHoraFinUnix } from "#/util/fecha.js";
+import { calcularHoraFinUnix, minutosMexico, diaSemanaMexico } from "#/util/fecha.js";
 import { validarTotp } from "#/lib/totp.js";
 import { notificarUnAlumno, notificarAlumnos, notificarProfesor } from "#/lib/fcm.js";
 import { obtenerHorarioDeHoy } from "#/repositories/HorarioRepository.js";
@@ -63,6 +63,7 @@ export const eliminarAsistencia = async (id: number) => {
   return repoEliminarAsistencia(id);
 };
 
+
 export const registrarAsistenciasEnLote = async (datos: {
   claseId: number;
   registros: {
@@ -72,9 +73,16 @@ export const registrarAsistenciasEnLote = async (datos: {
     fechaDispositivo: Date;
   }[];
 }) => {
+  const idsUnicos = new Set<number>();
+  const registrosSinDuplicar = datos.registros.filter((reg) => {
+    if (idsUnicos.has(reg.alumnoId)) return false;
+    idsUnicos.add(reg.alumnoId);
+    return true;
+  });
+
   const registrosFiltrados = (
     await Promise.all(
-      datos.registros.map(async (reg) => {
+      registrosSinDuplicar.map(async (reg) => {
         const existente = await obtenerAsistencia(datos.claseId, reg.alumnoId);
         return existente ? null : reg;
       }),
@@ -101,6 +109,23 @@ export const registrarAsistenciasEnLote = async (datos: {
   return resultado;
 };
 
+
+function determinarEstadoPorTolerancia(
+  minutosDeTolerancia: number | null | undefined,
+  horarioHoy: { horaDeInicio: Date } | null,
+): EstadoAsistencia {
+  if (!minutosDeTolerancia || minutosDeTolerancia <= 0) return "PRESENTE";
+  if (!horarioHoy?.horaDeInicio) return "PRESENTE";
+
+  const minutosActual = minutosMexico(new Date());
+  const minutosInicio = horarioHoy.horaDeInicio.getUTCHours() * 60
+    + horarioHoy.horaDeInicio.getUTCMinutes();
+
+  return minutosActual > minutosInicio + minutosDeTolerancia
+    ? "RETARDO"
+    : "PRESENTE";
+}
+
 export const registrarAsistenciaQR = async (
   claseId: number,
   alumnoId: number,
@@ -110,6 +135,7 @@ export const registrarAsistenciaQR = async (
   const config = await repoObtenerClasePorId(claseId).then(c => c?.configuracion);
   const llaveSecreta = config?.llaveSecreta;
   const segundosExpiracion = config?.segundosDeExpiracionDelToken ?? 300;
+  const minutosDeTolerancia = config?.minutosDeTolerancia;
 
   if (!llaveSecreta) {
     throw new ErrorValidacion("Esta clase no tiene configuracion de asistencia");
@@ -122,32 +148,36 @@ export const registrarAsistenciaQR = async (
 
   const existente = await obtenerAsistencia(claseId, alumnoId);
   if (existente) {
-    return { asistencia: existente, esDuplicado: true };
+    return { asistencia: { id: existente.id, estado: existente.estado }, esDuplicado: true };
   }
+
+  const horarioHoy = await obtenerHorarioDeHoy(claseId, diaSemanaMexico());
+  const estado = determinarEstadoPorTolerancia(minutosDeTolerancia, horarioHoy);
 
   const resultado = await registrarAsistencia({
     claseId,
     alumnoId,
     metodo: "QR",
-    estado: "PRESENTE",
+    estado,
     fechaDispositivo,
   });
 
   await notificarUnAlumno(alumnoId, {
     tipo: "asistencia_registrada",
     claseId: String(claseId),
-    estado: "PRESENTE",
+    estado,
   });
 
   await notificarProfesor(claseId, {
     tipo: "asistencia_registrada",
     claseId: String(claseId),
     alumnoId: String(alumnoId),
-    estado: "PRESENTE",
+    estado,
   });
 
   return { asistencia: resultado, esDuplicado: false };
 };
+
 
 export const iniciarSesion = async (claseId: number, metodo: "BLE" | "QR" | "MANUAL", profesorId: number) => {
   const clase = await repoObtenerClasePorId(claseId);
@@ -165,7 +195,7 @@ export const iniciarSesion = async (claseId: number, metodo: "BLE" | "QR" | "MAN
   const llaveSecreta = config?.llaveSecreta || null;
   const segundosExpiracion = config?.segundosDeExpiracionDelToken ?? 300;
 
-  const horarioHoy = await obtenerHorarioDeHoy(claseId, new Date().getDay());
+  const horarioHoy = await obtenerHorarioDeHoy(claseId, diaSemanaMexico());
   const horaFinUnix = calcularHoraFinUnix(horarioHoy);
 
   let qrToken: string | null = null;
@@ -184,7 +214,7 @@ export const iniciarSesion = async (claseId: number, metodo: "BLE" | "QR" | "MAN
     payload.llaveSecreta = llaveSecreta;
   }
 
-  const resultado = await notificarAlumnos(claseId, payload);
+  await notificarAlumnos(claseId, payload);
 
   return {
     mensaje: "Sesion iniciada correctamente",
@@ -195,9 +225,9 @@ export const iniciarSesion = async (claseId: number, metodo: "BLE" | "QR" | "MAN
     llaveSecreta,
     qrToken,
     horaFinUnix,
-    notificaciones: resultado,
   };
 };
+
 
 export const registrarLoteBle = async (
   claseId: number,
@@ -205,11 +235,20 @@ export const registrarLoteBle = async (
 ) => {
   const config = await repoObtenerClasePorId(claseId).then(c => c?.configuracion);
   const llaveSecreta = config?.llaveSecreta;
+  const minutosDeTolerancia = config?.minutosDeTolerancia;
   const tiempoServidor = Math.floor(Date.now() / 1000);
+  const horarioHoy = await obtenerHorarioDeHoy(claseId, diaSemanaMexico());
+
+  const idsUnicos = new Set<number>();
+  const registrosSinDuplicar = registros.filter((reg) => {
+    if (idsUnicos.has(reg.alumnoId)) return false;
+    idsUnicos.add(reg.alumnoId);
+    return true;
+  });
 
   const registrosValidados = (
     await Promise.all(
-      registros.map(async (reg) => {
+      registrosSinDuplicar.map(async (reg) => {
         const existente = await obtenerAsistencia(claseId, reg.alumnoId);
         if (existente) return null;
 
@@ -219,6 +258,8 @@ export const registrarLoteBle = async (
           const totpValido = validarTotp(reg.totp, llaveSecreta, reg.alumnoId, tiempoServidor);
           if (!totpValido) {
             estadoValido = "FALTA" as EstadoAsistencia;
+          } else {
+            estadoValido = determinarEstadoPorTolerancia(minutosDeTolerancia, horarioHoy);
           }
         }
 
@@ -235,7 +276,7 @@ export const registrarLoteBle = async (
   if (registrosValidados.length === 0) {
     return {
       mensaje: "Todos los alumnos ya tienen asistencia registrada",
-      registros: [] as typeof registrosValidados,
+      registros: [],
     };
   }
 
@@ -252,5 +293,8 @@ export const registrarLoteBle = async (
     });
   }
 
-  return resultado;
+  return {
+    mensaje: "Asistencias registradas correctamente",
+    registros: resultado,
+  };
 };

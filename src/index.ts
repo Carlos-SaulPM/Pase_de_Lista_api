@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express, { Application } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import morgan from "morgan";
 import createRouter from "express-file-routing";
 import path from "path";
@@ -14,7 +15,16 @@ const __dirname = path.dirname(__filename);
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+const ORIGENES_PERMITIDOS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
+  : ["http://localhost:5173", "http://localhost:3000"];
+
+app.use(helmet());
+app.use(cors({
+  origin: ORIGENES_PERMITIDOS,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
 app.use(express.json());
 app.use(morgan("dev"));
 

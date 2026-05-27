@@ -73,14 +73,14 @@ import { authMiddleware, requireRol, AutenticatedRequest } from "#/middleware/au
  *       401:
  *         description: No autenticado
  */
-export const GET = [authMiddleware, requireRol("ADMINISTRADOR"), async (_req: AutenticatedRequest, res: Response) => {
+export const GET = [authMiddleware, requireRol("PROFESOR", "ADMINISTRADOR"), async (_req: AutenticatedRequest, res: Response) => {
   const clases = await listarClases();
   res.json(clases);
 }];
 
 export const POST = [
   authMiddleware,
-  requireRol("ADMINISTRADOR"),
+  requireRol("PROFESOR", "ADMINISTRADOR"),
   async (req: AutenticatedRequest, res: Response) => {
     const validacion = crearClaseSchema.safeParse(req.body);
 

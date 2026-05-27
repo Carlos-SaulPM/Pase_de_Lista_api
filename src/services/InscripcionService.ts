@@ -18,7 +18,7 @@ export const listarInscripcionesPorClase = async (claseId: number) => {
 export const crearNuevaInscripcion = async (datos: { claseId: number; matricula: string }) => {
   const credencial = await EncontrarPorMatricula(datos.matricula);
   if (!credencial) {
-    throw new ErrorRecursoNoEncontrado("Alumno", datos.matricula);
+    throw new ErrorRecursoNoEncontrado("Alumno", datos.matricula, "matrícula");
   }
 
   const alumnoId = credencial.usuario.id;
@@ -27,6 +27,22 @@ export const crearNuevaInscripcion = async (datos: { claseId: number; matricula:
     throw new ErrorConflicto("El alumno ya esta inscrito en esta clase");
   }
   return crearInscripcion({ claseId: datos.claseId, alumnoId });
+};
+
+export const crearNuevaInscripcionBatch = async (claseId: number, matriculas: string[]) => {
+  const resultados: { matricula: string; exito: boolean; error?: string }[] = [];
+
+  for (const matricula of matriculas) {
+    try {
+      await crearNuevaInscripcion({ claseId, matricula });
+      resultados.push({ matricula, exito: true });
+    } catch (e) {
+      const mensaje = e instanceof Error ? e.message : "Error desconocido";
+      resultados.push({ matricula, exito: false, error: mensaje });
+    }
+  }
+
+  return resultados;
 };
 
 export const obtenerInscripcionPorId = async (id: number) => {

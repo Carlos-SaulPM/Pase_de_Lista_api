@@ -24,7 +24,27 @@ export const authMiddleware = (
 export const requireRol = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const user = (req as AutenticatedRequest).user;
-    if (!user || !roles.includes(user.rol)) {
+    if (!user) {
+      res.status(401).json({ error: "No autenticado" });
+      return;
+    }
+    if (!user.rol || !roles.includes(user.rol)) {
+      res.status(403).json({ error: "No tienes permiso para acceder a este recurso" });
+      return;
+    }
+    next();
+  };
+};
+
+export const requireMismoUsuario = (parametroId: string = "id") => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = (req as AutenticatedRequest).user;
+    if (!user) {
+      res.status(401).json({ error: "No autenticado" });
+      return;
+    }
+    const idSolicitado = Number(req.params[parametroId]);
+    if (user.rol !== "ADMINISTRADOR" && user.usuarioId !== idSolicitado) {
       res.status(403).json({ error: "No tienes permiso para acceder a este recurso" });
       return;
     }

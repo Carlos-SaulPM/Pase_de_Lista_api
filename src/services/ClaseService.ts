@@ -26,6 +26,7 @@ export const crearNuevaClase = async (datos: {
   materiaId: number;
   grupo: string;
   periodo?: string;
+  aula?: string;
   profesorId: number;
 }) => {
   const existente = await obtenerClasePorGrupo(datos.grupo);
@@ -42,6 +43,7 @@ export const actualizarClase = async (
     profesorId: number;
     grupo: string;
     periodo: string;
+    aula: string;
     estaActivo: boolean;
   }>,
 ) => {

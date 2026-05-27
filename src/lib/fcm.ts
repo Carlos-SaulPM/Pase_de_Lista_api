@@ -10,20 +10,40 @@ import prisma from "#/lib/prisma.js";
  *   - FCM_PRIVATE_KEY_ID
  */
 export const notificarAlumnos = async (claseId: number, payload: Record<string, unknown>) => {
-  const inscripciones = await prisma.inscripcion.findMany({
-    where: {
-      claseId,
-      estaActivo: true,
-      fechaDeBaja: null,
-    },
-    include: {
-      alumno: {
-        include: {
-          dispositivos: true,
+  const [inscripciones, clase] = await Promise.all([
+    prisma.inscripcion.findMany({
+      where: {
+        claseId,
+        estaActivo: true,
+        fechaDeBaja: null,
+      },
+      include: {
+        alumno: {
+          include: {
+            dispositivos: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.clase.findUnique({
+      where: { id: claseId },
+      include: { materia: true, profesor: true },
+    }),
+  ]);
+
+  const materiaNombre = clase?.materia?.nombre || "Clase";
+  const grupo = clase?.grupo || "";
+  const profesorNombre = clase?.profesor?.nombre || "";
+
+  const esRegistrada = payload.tipo === "asistencia_registrada";
+  const titulo = esRegistrada
+    ? `Asistencia: ${materiaNombre}${grupo ? ` • ${grupo}` : ""}`
+    : `Pase de lista: ${materiaNombre}${grupo ? ` • ${grupo}` : ""}`;
+  const cuerpo = esRegistrada
+    ? `Registrada como ${payload.estado || "PRESENTE"}`
+    : profesorNombre
+      ? `El profesor ${profesorNombre} inicio el pase de lista`
+      : "Inicio el pase de lista";
 
   const fcmTokens: string[] = [];
   for (const inscripcion of inscripciones) {
@@ -54,7 +74,7 @@ export const notificarAlumnos = async (claseId: number, payload: Record<string, 
   let enviados = 0;
   for (const token of fcmTokens) {
     try {
-      await enviarMensaje(accessToken, project, token, payload);
+      await enviarMensaje(accessToken, project, token, payload, titulo, cuerpo);
       enviados++;
     } catch (error) {
       console.error("Error enviando FCM a token:", token, error);
@@ -65,12 +85,24 @@ export const notificarAlumnos = async (claseId: number, payload: Record<string, 
 };
 
 export const notificarUnAlumno = async (alumnoId: number, payload: Record<string, unknown>) => {
-  const dispositivos = await prisma.dispositivos.findMany({
-    where: { usuarioId: alumnoId },
-  });
+  const [dispositivos, clase] = await Promise.all([
+    prisma.dispositivos.findMany({
+      where: { usuarioId: alumnoId },
+    }),
+    prisma.clase.findUnique({
+      where: { id: Number(payload.claseId) },
+      include: { materia: true, profesor: true },
+    }),
+  ]);
 
   const fcmTokens = dispositivos.map(d => d.fcmToken).filter(Boolean);
   if (fcmTokens.length === 0) return { enviados: 0, mensaje: "Sin token FCM" };
+
+  const materiaNombre = clase?.materia?.nombre || "Clase";
+  const grupo = clase?.grupo || "";
+
+  const titulo = `Asistencia: ${materiaNombre}${grupo ? ` • ${grupo}` : ""}`;
+  const cuerpo = `Registrada como ${payload.estado || "PRESENTE"}`;
 
   const project = process.env.FCM_PROJECT_ID;
   const serviceAccountEmail = process.env.FCM_SERVICE_ACCOUNT_EMAIL;
@@ -88,7 +120,7 @@ export const notificarUnAlumno = async (alumnoId: number, payload: Record<string
   let enviados = 0;
   for (const token of fcmTokens) {
     try {
-      await enviarMensaje(accessToken, project, token, payload);
+      await enviarMensaje(accessToken, project, token, payload, titulo, cuerpo);
       enviados++;
     } catch (error) {
       console.error("Error enviando FCM a alumno:", alumnoId, error);
@@ -101,7 +133,7 @@ export const notificarUnAlumno = async (alumnoId: number, payload: Record<string
 export const notificarProfesor = async (claseId: number, payload: Record<string, unknown>) => {
   const clase = await prisma.clase.findUnique({
     where: { id: claseId },
-    include: { profesor: { include: { dispositivos: true } } },
+    include: { materia: true, profesor: { include: { dispositivos: true } } },
   });
 
   if (!clase || !clase.profesor) {
@@ -110,6 +142,14 @@ export const notificarProfesor = async (claseId: number, payload: Record<string,
 
   const fcmTokens = clase.profesor.dispositivos.map(d => d.fcmToken).filter(Boolean);
   if (fcmTokens.length === 0) return { enviados: 0, mensaje: "Sin token FCM" };
+
+  const materiaNombre = clase.materia?.nombre || "Clase";
+  const grupo = clase.grupo || "";
+
+  const titulo = `Alumno registrado: ${materiaNombre}${grupo ? ` • ${grupo}` : ""}`;
+  const cuerpo = payload.estado
+    ? `Registrado como ${payload.estado}`
+    : "Se registro un alumno";
 
   const project = process.env.FCM_PROJECT_ID;
   const serviceAccountEmail = process.env.FCM_SERVICE_ACCOUNT_EMAIL;
@@ -127,7 +167,7 @@ export const notificarProfesor = async (claseId: number, payload: Record<string,
   let enviados = 0;
   for (const token of fcmTokens) {
     try {
-      await enviarMensaje(accessToken, project, token, payload);
+      await enviarMensaje(accessToken, project, token, payload, titulo, cuerpo);
       enviados++;
     } catch (error) {
       console.error("Error enviando FCM a profesor:", claseId, error);
@@ -188,6 +228,8 @@ async function enviarMensaje(
   project: string,
   token: string,
   payload: Record<string, unknown>,
+  titulo: string,
+  cuerpo: string,
 ) {
   const url = `https://fcm.googleapis.com/v1/projects/${project}/messages:send`;
 
@@ -195,8 +237,8 @@ async function enviarMensaje(
     message: {
       token,
       notification: {
-        title: "Pase de Lista Iniciado",
-        body: "El profesor ha iniciado el pase de lista. Abre la aplicación.",
+        title: titulo,
+        body: cuerpo,
       },
       data: Object.fromEntries(
         Object.entries(payload).map(([k, v]) => [k, String(v)]),

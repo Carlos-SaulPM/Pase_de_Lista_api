@@ -2,15 +2,7 @@ import prisma from "#/lib/prisma.js";
 import { DiaDeLaSemana } from "@prisma/client";
 
 export const listarHorariosPorClase = async (claseId: number) => {
-  return prisma.horarioClase.findMany({
-    where: { claseId },
-    select: {
-      dia: true,
-      diaDeLaSemana: true,
-      horaDeInicio: true,
-      horaDeFin: true,
-    },
-  });
+  return prisma.horarioClase.findMany({ where: { claseId } });
 };
 
 export const obtenerHorarioPorId = async (id: number) => {
@@ -47,6 +39,18 @@ export const actualizarHorario = async (
 
 export const eliminarHorario = async (id: number) => {
   return prisma.horarioClase.delete({ where: { id } });
+};
+
+export const crearHorariosBatch = async (
+  datos: {
+    claseId: number;
+    dia: number;
+    diaDeLaSemana: DiaDeLaSemana;
+    horaDeInicio: Date;
+    horaDeFin: Date;
+  }[],
+) => {
+  return prisma.horarioClase.createMany({ data: datos, skipDuplicates: false });
 };
 
 export const obtenerHorarioDeHoy = async (claseId: number, dia: number) => {

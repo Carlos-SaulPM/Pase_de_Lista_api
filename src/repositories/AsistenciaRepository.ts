@@ -7,7 +7,10 @@ export const listarAsistencias = async (filtros?: { claseId?: number; alumnoId?:
       ...(filtros?.claseId && { claseId: filtros.claseId }),
       ...(filtros?.alumnoId && { alumnoId: filtros.alumnoId }),
     },
-    include: { clase: true, alumno: true },
+    include: {
+      clase: { select: { id: true, grupo: true } },
+      alumno: { select: { id: true, nombre: true, apellidoPaterno: true, apellidoMaterno: true } },
+    },
     orderBy: { fechaRegistro: "desc" },
   });
 };
@@ -15,7 +18,7 @@ export const listarAsistencias = async (filtros?: { claseId?: number; alumnoId?:
 export const listarAlumnosConAsistencia = async (claseId: number) => {
   return prisma.asistencia.findMany({
     where: { claseId },
-    include: { alumno: true },
+    include: { alumno: { select: { id: true, nombre: true, apellidoPaterno: true, apellidoMaterno: true } } },
     orderBy: { fechaRegistro: "desc" },
   });
 };
@@ -23,13 +26,17 @@ export const listarAlumnosConAsistencia = async (claseId: number) => {
 export const obtenerAsistenciaPorId = async (id: number) => {
   return prisma.asistencia.findUnique({
     where: { id },
-    include: { clase: true, alumno: true },
+    include: {
+      clase: { select: { id: true, grupo: true } },
+      alumno: { select: { id: true, nombre: true, apellidoPaterno: true, apellidoMaterno: true } },
+    },
   });
 };
 
 export const obtenerAsistencia = async (claseId: number, alumnoId: number) => {
   return prisma.asistencia.findFirst({
     where: { claseId, alumnoId },
+    select: { id: true, estado: true, metodo: true },
   });
 };
 
@@ -45,7 +52,6 @@ export const registrarAsistencia = async (datos: {
       ...datos,
       fechaRegistro: new Date(),
     },
-    include: { clase: true, alumno: true },
   });
 };
 

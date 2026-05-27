@@ -10,4 +10,6 @@ export const crearHorarioSchema = z.object({
     .regex(/^\d{2}:\d{2}$/, "Formato de hora inválido (HH:mm)"),
 });
 
+export const crearHorariosBatchSchema = z.array(crearHorarioSchema).min(1, "Debe incluir al menos un horario");
+
 export const actualizarHorarioSchema = crearHorarioSchema.partial();

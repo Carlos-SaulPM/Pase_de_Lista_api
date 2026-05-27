@@ -26,7 +26,11 @@ export const manejarErrores = (
   }
 
   if (err instanceof ErrorValidacion) {
-    res.status(400).json({ error: err.message, detalles: err.detalles });
+    if (err.detalles && err.detalles.length > 0) {
+      res.status(400).json({ error: err.message, detalles: err.detalles });
+    } else {
+      res.status(400).json({ error: err.message });
+    }
     return;
   }
 
