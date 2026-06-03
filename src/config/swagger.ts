@@ -12,7 +12,7 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: "http://localhost:3000",
+        url: "http://localhost:3001",
         description: "Servidor de desarrollo",
       },
     ],
@@ -44,8 +44,10 @@ const options: swaggerJsdoc.Options = {
           properties: {
             id: { type: "integer" },
             nombre: { type: "string" },
+            apellidoPaterno: { type: "string" },
+            apellidoMaterno: { type: "string" },
             correo: { type: "string", nullable: true },
-            rol: { type: "string", enum: ["ALUMNO", "PROFESOR"] },
+            rol: { type: "string", enum: ["ALUMNO", "PROFESOR", "ADMINISTRADOR"] },
             matricula: { type: "string" },
           },
         },
@@ -63,7 +65,7 @@ const options: swaggerJsdoc.Options = {
             apellidoPaterno: { type: "string" },
             apellidoMaterno: { type: "string" },
             correo: { type: "string", nullable: true },
-            rol: { type: "string", enum: ["ALUMNO", "PROFESOR"] },
+            rol: { type: "string", enum: ["ALUMNO", "PROFESOR", "ADMINISTRADOR"] },
           },
         },
         Materia: {

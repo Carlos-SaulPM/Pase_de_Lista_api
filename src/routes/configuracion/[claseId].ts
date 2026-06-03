@@ -10,6 +10,50 @@ const actualizarConfigSchema = z.object({
   distanciaRssi: z.number().int().min(-128).max(0).optional(),
 });
 
+/**
+ * @openapi
+ * /api/configuracion/{claseId}:
+ *   put:
+ *     tags:
+ *       - Profesor
+ *     summary: Actualizar configuración BLE de una clase
+ *     description: Actualiza parámetros de configuración como llaveSecreta, minutosDeTolerancia, etc.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: claseId
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               llaveSecreta:
+ *                 type: string
+ *                 maxLength: 120
+ *               minutosDeTolerancia:
+ *                 type: integer
+ *                 minimum: 0
+ *               segundosDeExpiracionDelToken:
+ *                 type: integer
+ *                 minimum: 0
+ *               distanciaRssi:
+ *                 type: integer
+ *                 minimum: -128
+ *                 maximum: 0
+ *     responses:
+ *       200:
+ *         description: Configuración actualizada exitosamente
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Clase no encontrada
+ */
 export const PUT = [
   authMiddleware,
   requireRol("PROFESOR", "ADMINISTRADOR"),

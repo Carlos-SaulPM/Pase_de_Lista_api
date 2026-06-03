@@ -6,6 +6,56 @@ import { obtenerClasePorId } from "#/services/ClaseService.js";
 import { diasDeLaSemana } from "#/util/diasDeLaSemana";
 import { DiaDeLaSemana } from "@prisma/client";
 
+/**
+ * @openapi
+ * /api/horarios/{claseId}/batch:
+ *   post:
+ *     tags:
+ *       - Profesor
+ *     summary: Crear horarios en lote
+ *     description: Crea múltiples horarios para una clase de una sola vez. Valida conflictos antes de insertar.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: claseId
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: array
+ *             items:
+ *               type: object
+ *               required:
+ *                 - dia
+ *                 - horaDeInicio
+ *                 - horaDeFin
+ *               properties:
+ *                 dia:
+ *                   type: integer
+ *                   description: Día de la semana (1=Lunes, 6=Sábado)
+ *                 horaDeInicio:
+ *                   type: string
+ *                   format: time
+ *                   example: "08:00"
+ *                 horaDeFin:
+ *                   type: string
+ *                   format: time
+ *                   example: "10:00"
+ *     responses:
+ *       201:
+ *         description: Horarios creados exitosamente
+ *       400:
+ *         description: Datos inválidos o conflicto con horarios existentes
+ *       401:
+ *         description: No autenticado
+ *       403:
+ *         description: No eres el profesor de esta clase
+ */
 export const POST = [
   authMiddleware,
   requireRol("PROFESOR", "ADMINISTRADOR"),

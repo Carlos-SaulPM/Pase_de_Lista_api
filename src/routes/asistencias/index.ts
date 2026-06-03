@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { listarAsistencias, listarAlumnosConAsistencia, registrarAsistenciaQR } from "#/services/AsistenciaService.js";
+import { listarAsistencias, registrarAsistenciaQR } from "#/services/AsistenciaService.js";
 import { registrarAsistenciaSchema } from "#/schemas/AsistenciaSchemas.js";
-import { authMiddleware, requireRol, AutenticatedRequest } from "#/middleware/auth.js";
+import { authMiddleware, AutenticatedRequest } from "#/middleware/auth.js";
 import { ErrorValidacion } from "#/errors/ErrorValidacion.js";
 
 /**
@@ -66,18 +66,6 @@ export const GET = [authMiddleware, async (req: Request, res: Response) => {
   const alumnoId = req.query.alumnoId ? Number(req.query.alumnoId) : undefined;
 
   const asistencias = await listarAsistencias({ claseId, alumnoId });
-  res.json(asistencias);
-}];
-
-export const GET_REGISTRADAS = [authMiddleware, async (req: Request, res: Response) => {
-  const { claseId } = req.params;
-
-  if (!claseId) {
-    res.status(400).json({ error: "Se requiere claseId" });
-    return;
-  }
-
-  const asistencias = await listarAlumnosConAsistencia(Number(claseId));
   res.json(asistencias);
 }];
 

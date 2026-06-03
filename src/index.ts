@@ -20,11 +20,13 @@ const ORIGENES_PERMITIDOS = process.env.CORS_ORIGINS
   : ["http://localhost:5173", "http://localhost:3000"];
 
 app.use(helmet());
-app.use(cors({
-  origin: ORIGENES_PERMITIDOS,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+app.use(
+  cors({
+    origin: ORIGENES_PERMITIDOS,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 app.use(express.json());
 app.use(morgan("dev"));
 
